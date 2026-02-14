@@ -11,7 +11,7 @@ import logging
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
 
-from src.chat.history import ChatTurn
+from chat.history import ChatTurn
 
 logger = logging.getLogger(__name__)
 
