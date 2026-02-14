@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from langchain_groq import ChatGroq
 
-from src.config.env import GroqSettings
+from config.env import GroqSettings
 
 
 def build_groq_chat_model(settings: GroqSettings) -> ChatGroq:
