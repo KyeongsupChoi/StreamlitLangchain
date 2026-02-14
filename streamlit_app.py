@@ -17,8 +17,8 @@ def _ensure_import_paths() -> None:
 
     Streamlit runs the entry script with the repo root as the working directory,
     but Python import paths can differ across environments. We explicitly add:
-      - repo root (so `import src...` works when `src/` is a package)
-      - `src/` itself (so modules can still be resolved if packaging differs)
+      - repo root
+      - `src/` itself (so modules under `src/` can be imported as top-level packages)
     """
 
     repo_root = Path(__file__).resolve().parent
@@ -30,6 +30,6 @@ def _ensure_import_paths() -> None:
 
 _ensure_import_paths()
 
-from src.app.main import run  # noqa: E402
+from app.main import run  # type: ignore[reportMissingImports]  # noqa: E402
 
 run()
