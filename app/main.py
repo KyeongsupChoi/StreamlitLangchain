@@ -11,11 +11,11 @@ import logging
 
 import streamlit as st
 
-from src.chat.history import append_turn, ensure_history_initialized, get_history
-from src.chat.respond import generate_reply
-from src.config.env import get_groq_settings, load_environment
-from src.llm.groq_chat_model import build_groq_chat_model
-from src.observability.logging_config import configure_logging
+from chat.history import append_turn, ensure_history_initialized, get_history
+from chat.respond import generate_reply
+from config.env import get_groq_settings, load_environment
+from llm.groq_chat_model import build_groq_chat_model
+from observability.logging_config import configure_logging
 
 logger = logging.getLogger(__name__)
 
