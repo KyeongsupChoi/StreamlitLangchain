@@ -1,0 +1,126 @@
+## LangChain project checklist
+
+### Models
+- [x] Choose a **chat model provider + model identifier** (static), or implement **dynamic model selection** at runtime.
+- [x] Use a consistent model interface (`init_chat_model` or a provider class) and support:
+  - [x] `invoke()` for normal calls
+  - [x] `stream()` for progressive UX
+  - [x] `batch()` / `batch_as_completed()` for throughput
+- [x] Define and document **standard model parameters** you rely on:
+  - [x] `model`, `api_key`, `temperature`, `max_tokens`, `timeout`, `max_retries`
+- [x] Handle **token usage** tracking with context manager.
+- [x] Decide whether your app needs **multimodal** support (content blocks).
+- [x] Decide whether you need **reasoning output** surfaced (and at what level).
+- [x] Add **rate limiting** if you expect bursts or background jobs.
+- [x] Document any **base_url / proxy** requirements (AWS Bedrock endpoints):
+  - [ ] **AWS Bedrock configuration**:
+    - [ ] Set `region_name` (e.g., `us-east-1`, `us-west-2`)
+    - [ ] Configure AWS credentials (one of):
+      - [ ] Environment variables: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`
+      - [ ] AWS credentials file (`~/.aws/credentials`)
+      - [ ] IAM role (for EC2/ECS/Lambda execution)
+      - [ ] AWS SSO profile
+    - [ ] Specify `model_id` for Bedrock models (e.g., `anthropic.claude-3-sonnet-20240229-v1:0`)
+    - [ ] Handle cross-region inference if needed (requires specific model ARNs)
+  - [ ] **Corporate proxy** configuration (if behind firewall):
+    - [ ] Set boto3 proxy via `botocore.config.Config(proxies={'https': 'proxy-url'})`
+    - [ ] Or use environment variables: `HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY`
+    - [ ] Handle proxy authentication if required
+  - [ ] **Connection parameters** for AWS endpoints:
+    - [ ] `connect_timeout`, `read_timeout`: configure via botocore Config
+    - [ ] `max_attempts`: retry logic for API throttling (default 3)
+    - [ ] `retry_mode`: standard/adaptive for handling rate limits
+  - [ ] Document **environment-specific configurations**:
+    - [ ] Different AWS regions per environment (dev/staging/prod)
+    - [ ] Different IAM roles/credentials per environment
+    - [ ] Model availability by region
+
+### Tool calling
+- [ ] Define tools with **clear names, descriptions, and schemas** (they become part of the model's prompt):
+  - [ ] **Tool naming**:
+    - [ ] Use verb_noun format (e.g., `get_weather`, `search_database`, `send_email`)
+    - [ ] Be specific and descriptive (avoid generic names like `tool1`, `helper`)
+    - [ ] Use snake_case for consistency with LangChain conventions
+    - [ ] Keep names concise but unambiguous (model sees these in prompt)
+  - [ ] **Tool descriptions**:
+    - [ ] Write clear, imperative descriptions explaining what the tool does
+    - [ ] Include when/why to use the tool (helps model decision-making)
+    - [ ] Specify any constraints or limitations (API rate limits, data freshness, etc.)
+    - [ ] Keep descriptions concise but complete (they consume prompt tokens)
+  - [ ] **Schema design**:
+    - [ ] Use Pydantic models or `@tool` decorator for automatic schema generation
+    - [ ] Define all required vs optional parameters explicitly
+    - [ ] Add field descriptions for each parameter (shown to model)
+    - [ ] Use appropriate types (str, int, float, bool, enums, lists, nested objects)
+    - [ ] Set sensible defaults for optional parameters
+    - [ ] Add validation constraints (min/max, regex patterns, allowed values)
+  - [ ] **Parameter documentation**:
+    - [ ] Describe format expectations (e.g., "ISO 8601 date", "valid email address")
+    - [ ] Provide examples in descriptions when format is complex
+    - [ ] Clarify units for numeric parameters (seconds, meters, USD, etc.)
+    - [ ] Document relationships between parameters if applicable
+  - [ ] **Return value specification**:
+    - [ ] Document what the tool returns (type and structure)
+    - [ ] Explain possible error messages or failure modes
+    - [ ] Indicate if tool has side effects (writes data, sends notifications)
+- [ ] Bind tools with `bind_tools(...)` (and optionally):
+  - [ ] force tool use via `tool_choice`
+  - [ ] enable/disable `parallel_tool_calls`
+- [ ] Implement the **tool execution loop** correctly:
+  - [ ] model produces tool calls
+  - [ ] execute tool(s)
+  - [ ] return results as `ToolMessage` with matching `tool_call_id`
+  - [ ] re-invoke model with updated message history
+- [ ] Support **streaming tool calls** if you stream responses (tool call chunks accumulate into full calls).
+
+### Structured output
+- [ ] Decide if outputs must be **schema-constrained**.
+- [ ] Pick a schema type:
+  - [ ] Pydantic (validation + rich metadata)
+  - [ ] TypedDict (lightweight, no runtime validation)
+  - [ ] JSON Schema (interop/control)
+- [ ] Choose/confirm the **structured output method** strategy:
+  - [ ] provider-native (`json_schema`-style)
+  - [ ] tool/function-calling derived structure
+  - [ ] json-mode style (prompt-based constraints)
+- [ ] Decide whether you need `include_raw=True` (store raw message + parsed + error).
+
+### Agents
+- [ ] Decide whether you need an **agent loop** (vs direct model calls).
+- [ ] Define the **stop condition** (final answer vs iteration limit).
+- [x] Provide a **system prompt** (string or `SystemMessage`), or implement:
+  - [ ] dynamic system prompt middleware
+- [ ] Define tools as either:
+  - [ ] static tools (fixed list)
+  - [ ] dynamic tools (filtered or registered at runtime)
+- [ ] If using dynamic tools, implement one of:
+  - [ ] filtering pre-registered tools (by state/store/context)
+  - [ ] runtime registration with BOTH:
+    - [ ] `wrap_model_call` to add tools
+    - [ ] `wrap_tool_call` to execute tools
+
+### Middleware (production controls)
+- [ ] Add `wrap_model_call` middleware for:
+  - [ ] dynamic model selection/routing
+  - [ ] tool filtering / tool gating
+  - [ ] request shaping (timeouts, params, overrides)
+- [ ] Add `wrap_tool_call` middleware for:
+  - [ ] tool error handling (convert exceptions to model-visible messages)
+  - [ ] tool substitution / runtime dispatch
+- [ ] Decide what agent **state** you need beyond messages:
+  - [ ] via middleware state schema
+  - [ ] or `state_schema` for tool access
+
+### Memory & conversation state
+- [x] Decide on **short-term memory** approach (message state).
+- [ ] Decide on **persistence** (in-memory vs durable store) if conversations must survive restarts.
+- [ ] Standardize identifiers like **thread/conversation IDs**.
+
+### Streaming UX
+- [ ] Decide what you stream:
+  - [ ] tokens/text
+  - [ ] intermediate agent steps
+  - [ ] tool call progress
+  - [ ] semantic events (`astream_events`)
+- [ ] Ensure every step that touches model output is **stream-compatible** (or explicitly non-streaming).
+
