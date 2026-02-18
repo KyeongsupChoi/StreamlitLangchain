@@ -21,16 +21,24 @@ logger = logging.getLogger(__name__)
 @tool
 def get_current_time(timezone_name: str = "UTC") -> str:
     """
-    Get the current date and time in a specified timezone.
+    Retrieve the current date and time in a specified timezone.
     
-    Use this tool when the user asks about the current time, date,
-    or needs time-related information.
+    When to use:
+      - User asks "What time is it?" or "What's the current date?"
+      - Time-sensitive operations requiring current timestamp
+      - Scheduling or time-based calculations
+    
+    Constraints:
+      - Currently only supports UTC timezone (production should use pytz/zoneinfo)
+      - Returns server time, not user's local time unless specified
+      - Time is accurate to the second; no millisecond precision
     
     Args:
-        timezone_name: Timezone name (e.g., "UTC", "America/New_York", "Europe/London")
+        timezone_name: Timezone name (e.g., "UTC", "America/New_York", "Europe/London").
+                      Default is "UTC". Only UTC currently implemented.
         
     Returns:
-        Current date and time in the specified timezone
+        Formatted timestamp string in YYYY-MM-DD HH:MM:SS format with timezone
     """
     logger.info("Tool called: get_current_time for timezone='%s'", timezone_name)
     
@@ -51,18 +59,28 @@ def convert_currency(
     to_currency: str
 ) -> str:
     """
-    Convert an amount from one currency to another using current exchange rates.
+    Convert monetary amounts between different currencies using exchange rates.
     
-    Use this tool when the user asks about currency conversion, exchange rates,
-    or monetary value in different currencies.
+    When to use:
+      - User asks "How much is X USD in EUR?"
+      - Price comparisons across currencies
+      - International payment calculations
+      - Budget planning for foreign expenses
+    
+    Constraints:
+      - Uses static exchange rates (placeholder); not real-time data
+      - Limited currency pairs supported (USD, EUR, GBP only)
+      - No historical rates; only current conversion
+      - Production version should integrate live currency API with rate limiting
+      - Exchange rates may be 15+ minutes delayed in production APIs
     
     Args:
-        amount: The monetary amount to convert
-        from_currency: Source currency code (e.g., "USD", "EUR", "GBP")
-        to_currency: Target currency code (e.g., "USD", "EUR", "GBP")
+        amount: The monetary amount to convert (must be positive number)
+        from_currency: Source currency code in ISO 4217 format (e.g., "USD", "EUR", "GBP")
+        to_currency: Target currency code in ISO 4217 format (e.g., "USD", "EUR", "GBP")
         
     Returns:
-        Converted amount with currency codes
+        Formatted string showing original and converted amounts with currency codes
     """
     logger.info(
         "Tool called: convert_currency %.2f %s to %s",

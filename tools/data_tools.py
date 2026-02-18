@@ -24,17 +24,28 @@ def fetch_weather(
     units: Literal["celsius", "fahrenheit"] = "celsius"
 ) -> str:
     """
-    Fetch current weather information for a specific location.
+    Retrieve current weather conditions and temperature for any location.
     
-    Use this tool when the user asks about weather conditions, temperature,
-    or atmospheric data for a location.
+    When to use:
+      - User asks "What's the weather like in [city]?"
+      - Planning outdoor activities or travel
+      - Checking temperature or atmospheric conditions
+      - Comparing weather across different locations
+    
+    Constraints:
+      - Placeholder implementation; production needs weather API integration
+      - Weather data freshness depends on API provider (typically 15-60 min updates)
+      - Some APIs have rate limits (e.g., 1000 calls/day for free tier)
+      - May not support very small towns or rural locations
+      - Coordinates-based lookup not currently supported
     
     Args:
-        location: City name or location (e.g., "San Francisco" or "New York, NY")
-        units: Temperature units - either "celsius" or "fahrenheit" (default: "celsius")
+        location: City name or "City, Country" format (e.g., "San Francisco" or "Tokyo, Japan").
+                 More specific locations yield better results.
+        units: Temperature units - "celsius" or "fahrenheit" (default: "celsius")
         
     Returns:
-        Current weather information including temperature and conditions
+        Human-readable weather summary including temperature, conditions, humidity, and wind
     """
     logger.info("Tool called: fetch_weather for location='%s', units='%s'", location, units)
     
@@ -46,20 +57,32 @@ def fetch_weather(
 @tool
 def calculate_math(expression: str) -> str:
     """
-    Calculate mathematical expressions and return the result.
+    Evaluate mathematical expressions and return numerical results.
     
-    Use this tool when the user asks for mathematical calculations,
-    arithmetic operations, or numerical computations.
+    When to use:
+      - User asks for calculations: "What is 15% of 200?"
+      - Arithmetic operations: addition, subtraction, multiplication, division
+      - Simple math functions: abs, round, min, max
+      - Number comparisons or basic computations
+    
+    Why use this tool:
+      - Ensures accurate calculations without LLM math errors
+      - Handles complex multi-step arithmetic reliably
+      - Provides exact numerical precision
+    
+    Constraints:
+      - Limited to basic arithmetic and built-in functions (abs, round, min, max)
+      - No support for variables, symbolic math, or algebraic expressions
+      - No trigonometric functions (sin, cos, tan) or advanced math
+      - Expression must be valid Python syntax
+      - Uses sandboxed evaluation for security (no file/network access)
+      - Maximum expression length: reasonable limit to prevent DoS
     
     Args:
-        expression: Mathematical expression to evaluate (e.g., "2 + 2", "sqrt(16)", "10 * 5")
+        expression: Mathematical expression as string (e.g., "2 + 2", "(10 * 5) - 3", "max(10, 20)")
         
     Returns:
-        The calculated result or an error message
-        
-    Note:
-        For security, this uses a safe evaluation method. Complex expressions
-        involving variables or custom functions may not be supported.
+        Numerical result as string, or error message if expression is invalid or unsupported
     """
     logger.info("Tool called: calculate_math with expression='%s'", expression)
     
