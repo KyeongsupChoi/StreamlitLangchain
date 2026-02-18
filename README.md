@@ -86,25 +86,60 @@ LangchainExpo/
   README.md
   requirements.txt
   streamlit_app.py
-  src/
-    app/
-      main.py
-    chat/
-      history.py
-      respond.py
-    config/
-      env.py
-    llm/
-      groq_chat_model.py
-    observability/
-      logging_config.py
-  logs/                     # created at runtime; gitignored
+  TOOLS_INTEGRATION_EXAMPLE.md
+  app/
+    main.py
+  chat/
+    history.py
+    respond.py
+    respond_with_tools.py     # ReAct loop with tool execution
+  config/
+    env.py
+  llm/
+    groq_chat_model.py
+  observability/
+    logging_config.py
+  tools/                      # NEW: Tool calling implementation
+    __init__.py
+    tool_manager.py           # Tool binding and registry
+    search_tools.py           # search_web, search_documents
+    data_tools.py             # fetch_weather, calculate_math
+    utility_tools.py          # get_current_time, convert_currency
+    TOOL_NAMING_GUIDE.md      # Naming conventions documentation
+  langchain_docs/             # LangChain implementation guides
+    Project_Checklist.md
+    1.Quickstart.md
+    2.Agents.md
+    3.Models.md
+    4.Messages.md
+  logs/                       # created at runtime; gitignored
 ```
+
+### Tool Calling
+
+This project includes a complete tool calling implementation following LangChain best practices:
+
+- **Naming conventions**: All tools follow `verb_noun` format (e.g., `search_web`, `fetch_weather`)
+- **6 example tools**: Web search, document search, weather, math, time, currency conversion
+- **Tool manager**: Central configuration for enabling/disabling tools
+- **ReAct loop**: Automatic tool execution with configurable iteration limits
+
+See [`TOOLS_INTEGRATION_EXAMPLE.md`](TOOLS_INTEGRATION_EXAMPLE.md) for usage examples and [`tools/TOOL_NAMING_GUIDE.md`](tools/TOOL_NAMING_GUIDE.md) for naming conventions.
+
+**Available tools:**
+- `search_web` - Search the web for information
+- `search_documents` - Search internal document collections
+- `fetch_weather` - Get current weather for a location
+- `calculate_math` - Evaluate mathematical expressions
+- `get_current_time` - Get current date and time
+- `convert_currency` - Convert between currencies
 
 ### Suggested next steps
 
+- Connect real APIs to tools (OpenWeatherMap, Tavily search, etc.)
 - Add streaming token output in the UI
+- Add tool call visualization and logging in the UI
 - Add conversation persistence (SQLite) and per-session IDs
-- Add tests for `config/` and `chat/` modules
+- Add tests for `config/`, `chat/`, and `tools/` modules
 - Add tracing (LangSmith or OpenTelemetry) and structured JSON logs
 
