@@ -1,0 +1,23 @@
+# Secrets
+.env
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Logs
+logs/
+
+# Streamlit
+.streamlit/
+
+# OS / tooling
+.DS_Store
+Thumbs.db
+desktop.ini
