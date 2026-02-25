@@ -107,11 +107,28 @@ LangchainExpo/
     utility_tools.py          # get_current_time, convert_currency
     TOOL_NAMING_GUIDE.md      # Naming conventions documentation
   langchain_docs/             # LangChain implementation guides
-    Project_Checklist.md
+    0.Project_Checklist.md
     1.Quickstart.md
     2.Agents.md
     3.Models.md
     4.Messages.md
+    5.Short_term_memory.md
+    6.Streaming_overview.md
+    7.Streaming_frontend.md
+    8.Structured_output.md
+    9.Tools.md
+    10.Memory_concepts.md
+    11.Context_engineering.md
+    12.RAG_agent.md
+    13.Semantic_search.md
+    14.SQL_agent.md
+    15.Voice_agent.md
+    16.Multi_agent_subagents.md
+    17.Multi_agent_handoffs.md
+    18.Multi_agent_router.md
+    19.Multi_agent_skills.md
+    20.Graph_API.md
+    21.Functional_API.md
   logs/                       # created at runtime; gitignored
 ```
 
