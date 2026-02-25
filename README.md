@@ -1,17 +1,19 @@
 ## LangChainExpo
 
-A production-minded **Streamlit + LangChain** chat application designed as a clean, portfolio-ready foundation for LLM apps.
+A **Streamlit + LangChain** application featuring a Korean real estate valuation tool and a Groq-backed chat interface.
 
 It ships with:
+- **Korean real estate valuation** -- deterministic engine with factor breakdown (기준가격, 층계수, 연도계수, 면적계수, 실거래가)
 - **Provider wiring (Groq)** via LangChain (`ChatGroq`)
 - **Robust config loading** for local dev (`.env`) and Streamlit Community Cloud (`secrets.toml` / Secrets UI)
-- **Structured, domain-based code layout** under `src/`
+- **Structured, domain-based code layout**
 - **File-based logging** (no `print()` operational logs)
 
 ### Demo
 
-- **UI**: Streamlit chat interface with a configurable system prompt, model, and temperature
-- **State**: Chat history stored in `st.session_state`
+- **Valuation page**: Form input (region, type, area, floor, year) with estimated value and factor breakdown table
+- **Chat page**: Streamlit chat interface with a configurable system prompt, model, and temperature
+- **State**: Chat history and valuation results stored in `st.session_state`
 - **Observability**: Logs written to `logs/app.log`
 
 ### Tech stack
@@ -69,11 +71,12 @@ If you change `requirements.txt`, reboot the app to force a reinstall.
 ### Architecture notes (what makes it portfolio-grade)
 
 - **Separation of concerns**:
+  - `valuation/`: property models, factor rules, mock data, deterministic engine
   - `chat/`: session history + response generation
   - `llm/`: provider-specific model factories (Groq today; easy to add more)
   - `config/`: env + secrets resolution
   - `observability/`: logging configuration
-  - `app/`: Streamlit UI composition
+  - `app/`: Streamlit UI composition (valuation page + chat page)
 - **Safe configuration**:
   - Secrets are never hard-coded.
 - **Maintainable defaults**:
@@ -88,7 +91,17 @@ LangchainExpo/
   streamlit_app.py
   TOOLS_INTEGRATION_EXAMPLE.md
   app/
-    main.py
+    main.py                     # Sidebar navigation + chat page
+    valuation_ui.py             # Valuation form + result breakdown
+  valuation/
+    __init__.py
+    models.py                   # Property, FactorContribution, ValuationResult
+    factor_rules.py             # Base prices, floor/age/size multipliers (mock)
+    engine.py                   # run_valuation() -> ValuationResult
+    data/
+      __init__.py
+      comparables.py            # Mock comparable transactions (실거래가)
+      official_price.py         # Mock official land prices (공시지가)
   chat/
     history.py
     respond.py
@@ -150,6 +163,18 @@ See [`TOOLS_INTEGRATION_EXAMPLE.md`](TOOLS_INTEGRATION_EXAMPLE.md) for usage exa
 - `calculate_math` - Evaluate mathematical expressions
 - `get_current_time` - Get current date and time
 - `convert_currency` - Convert between currencies
+
+### Valuation Engine
+
+The valuation engine computes a property estimate with no LLM required. It applies factors sequentially:
+
+1. **기준가격** (base price) -- region + type lookup (원/㎡ x area)
+2. **층계수** (floor factor) -- 1F 0.95, 2-4F 0.98, 5-15F 1.0, 16F+ 1.02
+3. **연도계수** (age factor) -- 0.5%/year depreciation, capped at 20%
+4. **면적계수** (size factor) -- 85-100㎡ neutral, smaller/larger slight discount
+5. **실거래가 반영** (comparables blend) -- 30% weight from mock transaction data
+
+Each factor is recorded as a `FactorContribution` so the UI renders a transparent breakdown table showing how the estimate was calculated. Data is currently mock; replace with data.go.kr APIs in Phase 2.
 
 ### Suggested next steps
 

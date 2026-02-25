@@ -2,11 +2,12 @@
 Korean real estate valuation domain.
 
 Project role:
-  Provides property models, valuation result types, and (in later steps)
-  the valuation engine and factor rules. Used by the Streamlit valuation
-  UI and optionally by chat tools.
+  Provides property models, factor rules, mock data, and a deterministic
+  valuation engine. Used by the Streamlit valuation UI and optionally by
+  chat tools.
 """
 
+from valuation.engine import run_valuation
 from valuation.models import (
     FactorContribution,
     Property,
@@ -19,4 +20,5 @@ __all__ = [
     "Property",
     "PropertyType",
     "ValuationResult",
+    "run_valuation",
 ]
