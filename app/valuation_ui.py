@@ -126,3 +126,14 @@ def _render_result() -> None:
     st.dataframe(df, use_container_width=True, hide_index=True)
 
     st.caption(f"데이터 출처: {result.data_sources_used}")
+
+    # 3D building visualization
+    st.subheader("건물 구조")
+    from valuation.building_visualization import build_building_figure
+
+    fig = build_building_figure(
+        floor=prop.floor,
+        area_sqm=prop.area_sqm,
+        property_type=prop.property_type,
+    )
+    st.plotly_chart(fig, use_container_width=True)

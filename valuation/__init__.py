@@ -7,6 +7,7 @@ Project role:
   chat tools.
 """
 
+from valuation.building_visualization import build_building_figure
 from valuation.engine import run_valuation
 from valuation.models import (
     FactorContribution,
@@ -20,5 +21,6 @@ __all__ = [
     "Property",
     "PropertyType",
     "ValuationResult",
+    "build_building_figure",
     "run_valuation",
 ]
