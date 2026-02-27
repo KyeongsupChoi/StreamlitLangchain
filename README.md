@@ -4,6 +4,7 @@ A **Streamlit + LangChain** application featuring a Korean real estate valuation
 
 It ships with:
 - **Korean real estate valuation** -- deterministic engine with factor breakdown (기준가격, 층계수, 연도계수, 면적계수, 실거래가)
+- **Real estate AI chatbot** -- LLM-powered conversational interface with domain-specific tools for valuation, comparables, official prices, and factor explanation
 - **Provider wiring (Groq)** via LangChain (`ChatGroq`)
 - **Robust config loading** for local dev (`.env`) and Streamlit Community Cloud (`secrets.toml` / Secrets UI)
 - **Structured, domain-based code layout**
@@ -12,6 +13,7 @@ It ships with:
 ### Demo
 
 - **Valuation page**: Form input (region, type, area, floor, year) with estimated value and factor breakdown table
+- **Real estate chatbot page**: Korean-language AI consultation with tool calling (감정 평가, 실거래가 조회, 공시지가, 요인 설명)
 - **Chat page**: Streamlit chat interface with a configurable system prompt, model, and temperature
 - **State**: Chat history and valuation results stored in `st.session_state`
 - **Observability**: Logs written to `logs/app.log`
@@ -93,6 +95,7 @@ LangchainExpo/
   app/
     main.py                     # Sidebar navigation + chat page
     valuation_ui.py             # Valuation form + result breakdown
+    realestate_chat_ui.py       # Real estate AI chatbot page
   valuation/
     __init__.py
     models.py                   # Property, FactorContribution, ValuationResult
@@ -112,9 +115,10 @@ LangchainExpo/
     groq_chat_model.py
   observability/
     logging_config.py
-  tools/                      # NEW: Tool calling implementation
+  tools/
     __init__.py
     tool_manager.py           # Tool binding and registry
+    realestate_tools.py       # Real estate domain tools (valuation, comparables, etc.)
     search_tools.py           # search_web, search_documents
     data_tools.py             # fetch_weather, calculate_math
     utility_tools.py          # get_current_time, convert_currency
@@ -142,6 +146,24 @@ LangchainExpo/
     19.Multi_agent_skills.md
     20.Graph_API.md
     21.Functional_API.md
+  tests/                      # pytest test suite (mirrors src structure)
+    conftest.py               # Shared fixtures (Property instances, mock models)
+    valuation/
+      test_models.py          # Property, FactorContribution, ValuationResult
+      test_factor_rules.py    # Base price, floor, age, size factor rules
+      test_engine.py          # run_valuation() end-to-end
+      data/
+        test_comparables.py   # Mock comparable transactions
+        test_official_price.py # Mock official land prices
+    chat/
+      test_history.py         # Session state history management
+      test_respond.py         # Plain LLM response generation
+      test_respond_with_tools.py # ReAct loop with mock tools
+    tools/
+      test_realestate_tools.py # Real estate domain tools
+      test_tool_manager.py    # Tool binding and registry
+    config/
+      test_env.py             # Environment variable loading
   logs/                       # created at runtime; gitignored
 ```
 
@@ -164,6 +186,17 @@ See [`TOOLS_INTEGRATION_EXAMPLE.md`](TOOLS_INTEGRATION_EXAMPLE.md) for usage exa
 - `get_current_time` - Get current date and time
 - `convert_currency` - Convert between currencies
 
+### Real Estate AI Chatbot
+
+The chatbot page ("부동산 AI 상담") provides an LLM-powered conversational interface for real estate queries. It uses the ReAct tool-calling loop to invoke domain-specific tools:
+
+- `estimate_property_value` -- Estimate market value with full factor breakdown
+- `search_comparables` -- Look up recent comparable transactions (실거래가)
+- `lookup_official_land_price` -- Query official land price (공시지가) by region
+- `explain_valuation_factors` -- Explain all valuation rules and constants
+
+The chatbot uses a Korean-language system prompt that instructs the model to call tools for data-driven answers, explain factor contributions, and stay within the supported scope (4 regions, 3 property types). Session history is isolated from the generic chat page.
+
 ### Valuation Engine
 
 The valuation engine computes a property estimate with no LLM required. It applies factors sequentially:
@@ -176,12 +209,32 @@ The valuation engine computes a property estimate with no LLM required. It appli
 
 Each factor is recorded as a `FactorContribution` so the UI renders a transparent breakdown table showing how the estimate was calculated. Data is currently mock; replace with data.go.kr APIs in Phase 2.
 
+### Testing
+
+The project uses **pytest** with 234 tests covering all core modules:
+
+```bash
+# Run tests
+python -m pytest
+
+# Run with coverage report
+python -m pytest --cov=valuation --cov=chat --cov=tools --cov=config --cov-report=term-missing
+```
+
+**Coverage highlights:**
+- `valuation/` (models, engine, factor rules, mock data): 95-100%
+- `chat/` (history, respond, respond_with_tools): 99-100%
+- `tools/realestate_tools.py`: 100%
+- `config/env.py`: 68% (Streamlit secrets paths untestable without Cloud runtime)
+
+Tests use mock models and fixtures from `tests/conftest.py` to test LLM-related code without API calls.
+
 ### Suggested next steps
 
 - Connect real APIs to tools (OpenWeatherMap, Tavily search, etc.)
+- Replace mock valuation data with data.go.kr APIs
 - Add streaming token output in the UI
 - Add tool call visualization and logging in the UI
 - Add conversation persistence (SQLite) and per-session IDs
-- Add tests for `config/`, `chat/`, and `tools/` modules
 - Add tracing (LangSmith or OpenTelemetry) and structured JSON logs
 

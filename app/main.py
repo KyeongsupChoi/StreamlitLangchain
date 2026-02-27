@@ -12,6 +12,7 @@ import logging
 
 import streamlit as st
 
+from app.realestate_chat_ui import render_realestate_chat_page
 from app.valuation_ui import render_valuation_page
 from chat.history import append_turn, ensure_history_initialized, get_history
 from chat.respond import generate_reply
@@ -22,6 +23,7 @@ from observability.logging_config import configure_logging
 logger = logging.getLogger(__name__)
 
 PAGE_VALUATION = "부동산 감정 평가"
+PAGE_REALESTATE_CHAT = "부동산 AI 상담"
 PAGE_CHAT = "Chat"
 
 
@@ -31,7 +33,7 @@ def _render_sidebar() -> dict:
     st.sidebar.header("Navigation")
     page = st.sidebar.radio(
         "Page",
-        options=[PAGE_VALUATION, PAGE_CHAT],
+        options=[PAGE_VALUATION, PAGE_REALESTATE_CHAT, PAGE_CHAT],
         label_visibility="collapsed",
     )
 
@@ -54,6 +56,23 @@ def _render_sidebar() -> dict:
         )
         if st.sidebar.button("Reset chat"):
             st.session_state.pop("chat_history", None)
+            st.rerun()
+
+    if page == PAGE_REALESTATE_CHAT:
+        st.sidebar.divider()
+        st.sidebar.header("Chat Settings")
+        chat_settings["model"] = st.sidebar.text_input(
+            "Groq model",
+            value="llama-3.3-70b-versatile",
+            help="Tool calling requires a capable model.",
+        )
+        chat_settings["temperature"] = float(
+            st.sidebar.slider(
+                "Temperature", min_value=0.0, max_value=1.0, value=0.2, step=0.05
+            )
+        )
+        if st.sidebar.button("Reset chat"):
+            st.session_state.pop("realestate_chat_history", None)
             st.rerun()
 
     return {"page": page, **chat_settings}
@@ -120,5 +139,7 @@ def run() -> None:
 
     if sidebar["page"] == PAGE_VALUATION:
         render_valuation_page()
+    elif sidebar["page"] == PAGE_REALESTATE_CHAT:
+        render_realestate_chat_page(sidebar)
     else:
         _render_chat_page(sidebar)

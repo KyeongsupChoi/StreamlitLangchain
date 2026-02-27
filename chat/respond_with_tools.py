@@ -46,7 +46,8 @@ def generate_reply_with_tools(
     *,
     history: list[ChatTurn],
     model,
-    max_iterations: int = 5
+    tools: list[BaseTool] | None = None,
+    max_iterations: int = 5,
 ) -> str:
     """
     Generate an assistant reply with tool calling support.
@@ -60,8 +61,12 @@ def generate_reply_with_tools(
     Args:
         history: Chat turns including system prompt and prior turns
         model: A LangChain chat model with tools bound via bind_tools()
+        tools: Optional list of BaseTool instances for direct name lookup.
+            When provided, tool resolution uses this list instead of
+            inspecting model attributes (works around RunnableBinding
+            storing schemas as dicts rather than BaseTool instances).
         max_iterations: Maximum number of tool calling iterations (default: 5)
-        
+
     Returns:
         Final assistant message content
         
@@ -100,8 +105,12 @@ def generate_reply_with_tools(
             logger.info("Executing tool: %s with args: %s", tool_name, tool_args)
             
             try:
-                # Get the tool from the model's bound tools
-                tool = _find_tool_by_name(model, tool_name)
+                # Get the tool: prefer explicit tools list, fall back to model inspection
+                tool = (
+                    _find_tool_in_list(tools, tool_name)
+                    if tools
+                    else _find_tool_by_name(model, tool_name)
+                )
                 if tool is None:
                     error_msg = f"Tool '{tool_name}' not found in bound tools"
                     logger.error(error_msg)
@@ -132,6 +141,23 @@ def generate_reply_with_tools(
     raise RuntimeError(
         f"Maximum tool calling iterations ({max_iterations}) reached without final answer"
     )
+
+
+def _find_tool_in_list(tools: list[BaseTool], name: str) -> BaseTool | None:
+    """
+    Find a tool by name in an explicit tool list.
+
+    Args:
+        tools: List of BaseTool instances.
+        name: Name of the tool to find.
+
+    Returns:
+        The tool if found, None otherwise.
+    """
+    for t in tools:
+        if t.name == name:
+            return t
+    return None
 
 
 def _find_tool_by_name(model: Any, tool_name: str) -> BaseTool | None:

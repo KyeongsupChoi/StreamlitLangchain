@@ -4,3 +4,7 @@ langchain>=0.2
 langchain-groq>=0.1.0
 pandas>=2.0
 plotly>=5.18
+
+# Testing
+pytest>=8.0
+pytest-cov>=6.0
