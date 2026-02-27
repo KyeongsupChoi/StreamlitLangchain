@@ -153,6 +153,94 @@ Jeonse vs. Maemae: Analysis of the "Gap Investment" potential by comparing renta
 
 Hojae Scoring: A custom LLM metric (1-10) scoring how impactful a news article is on a specific listing.
 
+🎓 Module: K-Real Estate Education & Strategy
+🎯 The Goal
+To decode high-barrier Korean real estate concepts using LLM-driven "Plain Language" translations and interactive simulators.
+
+🏗️ Core Educational Pillars
+1. The Financial Dualism: Jeonse & Wolse
+The Concept: Explaining why Korea has a "Deposit-Only" (Jeonse) system and how it differs from global renting.
+
+The "Gap" Simulator: * Input: Apartment Price + Jeonse Price.
+
+LLM Task: Explain "Gap Investment" risks. "If the market drops 10%, your equity is wiped out, and you cannot return the tenant's deposit."
+
+Safety Check (Jeonse-Sagi Prevention): A "Red Flag" checklist that analyzes the ratio between the market price and the deposit.
+
+2. The Golden Ticket: Subscription (Cheongyak)
+The Concept: The "New Build" lottery system.
+
+Interactive Calculator: * Users input their status (Married, Children, Bank account years).
+
+LLM Task: Categorize the user into "Special Supply" (Gong-geup) vs. "General Supply" and predict their winning probability based on recent "Cut-line" data from ApplyHome.
+
+The "Bun-yang" Tracker: Explaining the difference between Public (LH/SH) vs. Private (Raemian/Hillstate) subscriptions.
+
+3. The Wealth Accelerator: Redevelopment (Jae-geon-chuk/Jae-gae-bal)
+The Concept: Old villas/apartments turning into luxury complexes.
+
+The "9-Step Progress Bar":
+
+Safety Inspection (Anjeon-jindan)
+
+Proprietors Committee
+
+Combination Formation
+
+Construction Selection
+
+Business License
+
+Management Disposal (Gwan-ri Cheo-bun) — Crucial Step!
+
+Relocation/Demolition
+
+Construction/Subscription
+
+Move-in
+
+LLM Task: Monitor news for keywords like "Gwan-ri Cheo-bun" and explain: "This means the plan is finalized; residents are moving out. The price usually jumps here."
+
+4. The Distressed Asset: Auction (Gyeongmae)
+The Concept: Buying court-seized properties at a discount.
+
+Rights Analysis (Kwon-ri Bun-seok) Bot:
+
+Summarize the "Mal-so-gi-jun-gwon-ri" (The right that clears all other debts).
+
+Warning System: Highlight if there is an "Indemnity" (Byeon-je) risk where the buyer must pay a tenant's hidden deposit.
+
+🛠️ Implementation Strategy (The "Mentor" Agent)
+A. The "Explain Like I'm 5" (ELI5) Toggle
+In the Streamlit UI, add a toggle for "Expert Mode" vs. "Newbie Mode".
+
+Expert: Uses terms like LTV, DSR, and Pre-sale.
+
+Newbie: Uses "Loan limits," "Income-to-debt ratio," and "Buying before building."
+
+B. "What-If" Scenario Classroom
+Instead of static text, use the LLM to run simulations:
+
+Prompt: "What if the Bank of Korea raises interest rates by 0.5%? How does that affect the Jeonse-to-Wolse conversion rate (Cheon-se-yul)?"
+
+Response: The LLM generates a table showing the increase in monthly "Wolse" costs for the user’s selected apartment.
+
+C. News-to-Knowledge Bridge
+When a news article is analyzed, the app injects a "Dictionary Card".
+
+News mentions: "DSR limits tightened."
+
+App Pop-up: "💡 DSR (Debt Service Ratio) is the government's way of saying: 'You can't borrow more than you can realistically pay back based on your yearly salary.'"
+
+📊 Knowledge Base Data Sources (Vector DB)
+To ensure the LLM doesn't hallucinate, we will store these documents in a ChromaDB/Pinecone vector store:
+
+MOLIT Guidelines: Official manuals for Jeonse and Redevelopment.
+
+ApplyHome FAQ: The rules for apartment subscriptions.
+
+Court Auction Manuals: Standard "Rights Analysis" procedures.
+
 ## Dependencies
 
 Core: streamlit, python-dotenv, langchain, langchain-groq, pandas
