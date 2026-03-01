@@ -48,16 +48,17 @@ def generate_reply_with_tools(
     model,
     tools: list[BaseTool] | None = None,
     max_iterations: int = 5,
+    conversation_summary: str | None = None,
 ) -> str:
     """
     Generate an assistant reply with tool calling support.
-    
+
     This function implements the ReAct loop:
     1. Model generates response (possibly with tool calls)
     2. If tool calls present, execute them
     3. Return tool results to model
     4. Repeat until model produces final answer or max_iterations reached
-    
+
     Args:
         history: Chat turns including system prompt and prior turns
         model: A LangChain chat model with tools bound via bind_tools()
@@ -66,14 +67,28 @@ def generate_reply_with_tools(
             inspecting model attributes (works around RunnableBinding
             storing schemas as dicts rather than BaseTool instances).
         max_iterations: Maximum number of tool calling iterations (default: 5)
+        conversation_summary: Optional rolling summary of earlier turns.
+            When provided, injected as a SystemMessage immediately after the
+            main system prompt so the model retains long-term context without
+            requiring the full history in-context.
 
     Returns:
         Final assistant message content
-        
+
     Raises:
         RuntimeError: If model returns empty response or exceeds max iterations
     """
     messages = _to_langchain_messages(history)
+
+    # Inject the rolling conversation summary as an extra SystemMessage so the
+    # model has long-term context even after older turns have been pruned.
+    if conversation_summary:
+        summary_msg = SystemMessage(
+            content=f"[대화 요약 — 이전 대화의 핵심 내용]\n{conversation_summary}"
+        )
+        # Insert after the first system message (index 0) if present, else prepend.
+        insert_at = 1 if messages and isinstance(messages[0], SystemMessage) else 0
+        messages.insert(insert_at, summary_msg)
     iteration = 0
     
     while iteration < max_iterations:

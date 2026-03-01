@@ -1,9 +1,12 @@
 """
 Main Streamlit application for LangChainExpo.
 
-Project role:
-  Compose UI + domain logic to provide a LangChain-powered chat experience
-  and a Korean real estate valuation page with factor breakdown.
+Phase 3 additions:
+  • 뉴스 분석 (News Analysis) page — Trend Hunter entry point
+  • Cross-page navigation via st.session_state["navigate_to"]
+  • Pyeong ↔ ㎡ unit toggle (valuation sidebar)
+  • Expert / Newbie mode toggle (real estate chat sidebar)
+  • Watchlist panel (sidebar, all pages)
 """
 
 from __future__ import annotations
@@ -12,6 +15,8 @@ import logging
 
 import streamlit as st
 
+from app.context import get_app_context, remove_from_watchlist
+from app.news_ui import render_news_page
 from app.realestate_chat_ui import render_realestate_chat_page
 from app.valuation_ui import render_valuation_page
 from chat.history import append_turn, ensure_history_initialized, get_history
@@ -24,20 +29,103 @@ logger = logging.getLogger(__name__)
 
 PAGE_VALUATION = "부동산 감정 평가"
 PAGE_REALESTATE_CHAT = "부동산 AI 상담"
+PAGE_NEWS = "뉴스 분석"
 PAGE_CHAT = "Chat"
+_ALL_PAGES = [PAGE_VALUATION, PAGE_REALESTATE_CHAT, PAGE_NEWS, PAGE_CHAT]
 
 
 def _render_sidebar() -> dict:
-    """Render sidebar with page navigation and chat settings."""
+    """Render sidebar with page navigation, settings, and watchlist."""
+
+    # ── Navigation ─────────────────────────────────────────────────────────────
+    # Support programmatic navigation via st.session_state["navigate_to"].
+    nav_override = st.session_state.pop("navigate_to", None)
+    nav_index = (
+        _ALL_PAGES.index(nav_override)
+        if nav_override in _ALL_PAGES
+        else 0
+    )
 
     st.sidebar.header("Navigation")
     page = st.sidebar.radio(
         "Page",
-        options=[PAGE_VALUATION, PAGE_REALESTATE_CHAT, PAGE_CHAT],
+        options=_ALL_PAGES,
+        index=nav_index,
         label_visibility="collapsed",
     )
 
-    chat_settings = {}
+    chat_settings: dict = {}
+
+    # ── Valuation page sidebar ─────────────────────────────────────────────────
+    if page == PAGE_VALUATION:
+        st.sidebar.divider()
+        st.sidebar.header("표시 설정")
+        unit_mode = st.sidebar.radio(
+            "면적 단위",
+            options=["㎡", "평"],
+            horizontal=True,
+            key="unit_mode",
+        )
+        chat_settings["unit_mode"] = unit_mode
+
+    # ── Real estate chat sidebar ───────────────────────────────────────────────
+    if page == PAGE_REALESTATE_CHAT:
+        st.sidebar.divider()
+        st.sidebar.header("Chat Settings")
+        chat_settings["model"] = st.sidebar.text_input(
+            "Groq model",
+            value="llama-3.3-70b-versatile",
+            help="Tool calling requires a capable model.",
+        )
+        chat_settings["temperature"] = float(
+            st.sidebar.slider(
+                "Temperature", min_value=0.0, max_value=1.0, value=0.2, step=0.05
+            )
+        )
+        chat_settings["expert_mode"] = st.sidebar.toggle(
+            "전문가 모드",
+            value=True,
+            help=(
+                "전문가 모드: LTV·DSR·분양가 등 전문 용어 사용.\n"
+                "입문자 모드: 쉬운 말로 풀어서 설명."
+            ),
+        )
+        if st.sidebar.button("Reset chat"):
+            st.session_state.pop("realestate_chat_history", None)
+            st.session_state.pop("realestate_conversation_summary", None)
+            st.rerun()
+
+        # Memory indicator
+        from chat.history import count_non_system_turns
+        turn_count = count_non_system_turns(
+            st.session_state, "realestate_chat_history"
+        )
+        if turn_count > 0:
+            st.sidebar.caption(f"대화 기록: {turn_count}턴")
+        if st.session_state.get("realestate_conversation_summary"):
+            st.sidebar.info("🧠 메모리 활성화됨")
+
+    # ── News analysis sidebar ──────────────────────────────────────────────────
+    if page == PAGE_NEWS:
+        st.sidebar.divider()
+        st.sidebar.header("모델 설정")
+        chat_settings["model"] = st.sidebar.text_input(
+            "Groq model",
+            value="llama-3.3-70b-versatile",
+            key="news_model",
+        )
+        chat_settings["temperature"] = float(
+            st.sidebar.slider(
+                "Temperature",
+                min_value=0.0,
+                max_value=1.0,
+                value=0.2,
+                step=0.05,
+                key="news_temp",
+            )
+        )
+
+    # ── Generic chat sidebar ───────────────────────────────────────────────────
     if page == PAGE_CHAT:
         st.sidebar.divider()
         st.sidebar.header("Chat Settings")
@@ -58,22 +146,30 @@ def _render_sidebar() -> dict:
             st.session_state.pop("chat_history", None)
             st.rerun()
 
-    if page == PAGE_REALESTATE_CHAT:
+    # ── Watchlist (always visible if non-empty) ────────────────────────────────
+    ctx = get_app_context(st.session_state)
+    if ctx.watchlist:
         st.sidebar.divider()
-        st.sidebar.header("Chat Settings")
-        chat_settings["model"] = st.sidebar.text_input(
-            "Groq model",
-            value="llama-3.3-70b-versatile",
-            help="Tool calling requires a capable model.",
-        )
-        chat_settings["temperature"] = float(
-            st.sidebar.slider(
-                "Temperature", min_value=0.0, max_value=1.0, value=0.2, step=0.05
-            )
-        )
-        if st.sidebar.button("Reset chat"):
-            st.session_state.pop("realestate_chat_history", None)
-            st.rerun()
+        st.sidebar.subheader("★ 관심 목록")
+        for name in list(ctx.watchlist):
+            wl_col, rm_col = st.sidebar.columns([4, 1])
+            with wl_col:
+                if st.sidebar.button(
+                    name,
+                    key=f"wl_nav_{name}",
+                    use_container_width=True,
+                ):
+                    # Navigate to valuation with this complex pre-filled
+                    from valuation.data.complex_directory import get_complex
+                    found = get_complex(name)
+                    if found:
+                        st.session_state["prefill_complex"] = found
+                    st.session_state["navigate_to"] = PAGE_VALUATION
+                    st.rerun()
+            with rm_col:
+                if st.sidebar.button("✕", key=f"wl_rm_{name}"):
+                    remove_from_watchlist(st.session_state, name)
+                    st.rerun()
 
     return {"page": page, **chat_settings}
 
@@ -133,7 +229,11 @@ def run() -> None:
     configure_logging()
     load_environment()
 
-    st.set_page_config(page_title="LangChainExpo", layout="centered")
+    st.set_page_config(
+        page_title="LangChainExpo",
+        page_icon="🏢",
+        layout="centered",
+    )
 
     sidebar = _render_sidebar()
 
@@ -141,5 +241,7 @@ def run() -> None:
         render_valuation_page()
     elif sidebar["page"] == PAGE_REALESTATE_CHAT:
         render_realestate_chat_page(sidebar)
+    elif sidebar["page"] == PAGE_NEWS:
+        render_news_page(sidebar)
     else:
         _render_chat_page(sidebar)

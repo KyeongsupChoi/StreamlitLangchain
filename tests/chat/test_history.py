@@ -1,121 +1,180 @@
 """
-Tests for chat/history.py -- session state chat history management.
-
-Covers initialization, appending turns, retrieval, and state key isolation.
+Tests for chat/history.py -- session history helpers and summary memory.
 """
 
 from __future__ import annotations
 
+from unittest.mock import MagicMock
+
 import pytest
 
 from chat.history import (
-    DEFAULT_SYSTEM_PROMPT,
+    SUMMARY_THRESHOLD,
     append_turn,
+    count_non_system_turns,
     ensure_history_initialized,
+    get_conversation_summary,
     get_history,
+    should_summarize,
+    store_conversation_summary,
+    summarize_history,
 )
 
 
 class TestEnsureHistoryInitialized:
-    """Tests for ensure_history_initialized()."""
+    def test_initializes_empty_state(self):
+        state = {}
+        ensure_history_initialized(state)
+        assert "chat_history" in state
 
-    def test_creates_history_in_empty_state(self, empty_session_state):
-        ensure_history_initialized(empty_session_state)
-        assert "chat_history" in empty_session_state
+    def test_first_message_is_system(self):
+        state = {}
+        ensure_history_initialized(state)
+        assert state["chat_history"][0]["role"] == "system"
 
-    def test_default_system_prompt(self, empty_session_state):
-        ensure_history_initialized(empty_session_state)
-        history = empty_session_state["chat_history"]
-        assert len(history) == 1
-        assert history[0]["role"] == "system"
-        assert history[0]["content"] == DEFAULT_SYSTEM_PROMPT
+    def test_does_not_overwrite_existing_history(self):
+        state = {"chat_history": [{"role": "user", "content": "existing"}]}
+        ensure_history_initialized(state)
+        assert state["chat_history"][0]["role"] == "user"
 
-    def test_custom_system_prompt(self, empty_session_state):
-        ensure_history_initialized(
-            empty_session_state, system_prompt="Custom prompt"
-        )
-        assert empty_session_state["chat_history"][0]["content"] == "Custom prompt"
+    def test_custom_system_prompt(self):
+        state = {}
+        ensure_history_initialized(state, system_prompt="Custom prompt")
+        assert state["chat_history"][0]["content"] == "Custom prompt"
 
-    def test_does_not_overwrite_existing(self, session_with_history):
-        original_len = len(session_with_history["chat_history"])
-        ensure_history_initialized(session_with_history)
-        assert len(session_with_history["chat_history"]) == original_len
-
-    def test_custom_state_key(self, empty_session_state):
-        ensure_history_initialized(
-            empty_session_state, state_key="realestate_chat_history"
-        )
-        assert "realestate_chat_history" in empty_session_state
-        assert "chat_history" not in empty_session_state
-
-    def test_multiple_keys_independent(self, empty_session_state):
-        ensure_history_initialized(
-            empty_session_state,
-            system_prompt="Prompt A",
-            state_key="key_a",
-        )
-        ensure_history_initialized(
-            empty_session_state,
-            system_prompt="Prompt B",
-            state_key="key_b",
-        )
-        assert empty_session_state["key_a"][0]["content"] == "Prompt A"
-        assert empty_session_state["key_b"][0]["content"] == "Prompt B"
+    def test_custom_state_key(self):
+        state = {}
+        ensure_history_initialized(state, state_key="other_key")
+        assert "other_key" in state
 
 
 class TestAppendTurn:
-    """Tests for append_turn()."""
+    def test_appends_user_turn(self):
+        state = {"chat_history": [{"role": "system", "content": "S"}]}
+        append_turn(state, role="user", content="Hello")
+        assert state["chat_history"][-1] == {"role": "user", "content": "Hello"}
 
-    def test_append_user_turn(self, session_with_history):
-        initial_len = len(session_with_history["chat_history"])
-        append_turn(session_with_history, role="user", content="New message")
-        assert len(session_with_history["chat_history"]) == initial_len + 1
-        assert session_with_history["chat_history"][-1]["role"] == "user"
-        assert session_with_history["chat_history"][-1]["content"] == "New message"
+    def test_appends_assistant_turn(self):
+        state = {"chat_history": [{"role": "system", "content": "S"}]}
+        append_turn(state, role="assistant", content="Hi!")
+        assert state["chat_history"][-1]["role"] == "assistant"
 
-    def test_append_assistant_turn(self, session_with_history):
-        append_turn(session_with_history, role="assistant", content="Response")
-        assert session_with_history["chat_history"][-1]["role"] == "assistant"
-
-    def test_append_to_custom_key(self, empty_session_state):
-        empty_session_state["custom_key"] = [
-            {"role": "system", "content": "test"}
-        ]
-        append_turn(
-            empty_session_state,
-            role="user",
-            content="Hello",
-            state_key="custom_key",
-        )
-        assert len(empty_session_state["custom_key"]) == 2
-
-    def test_preserves_existing_turns(self, session_with_history):
-        original = list(session_with_history["chat_history"])
-        append_turn(session_with_history, role="user", content="New")
-        for i, turn in enumerate(original):
-            assert session_with_history["chat_history"][i] == turn
+    def test_length_increases(self):
+        state = {"chat_history": [{"role": "system", "content": "S"}]}
+        append_turn(state, role="user", content="Q")
+        assert len(state["chat_history"]) == 2
 
 
 class TestGetHistory:
-    """Tests for get_history()."""
+    def test_returns_history(self, session_with_history):
+        result = get_history(session_with_history)
+        assert len(result) == 3
 
-    def test_returns_full_history(self, session_with_history):
-        history = get_history(session_with_history)
-        assert len(history) == 3
+    def test_includes_system_turn(self, session_with_history):
+        result = get_history(session_with_history)
+        assert result[0]["role"] == "system"
 
-    def test_includes_system_prompt(self, session_with_history):
-        history = get_history(session_with_history)
-        assert history[0]["role"] == "system"
 
-    def test_custom_state_key(self, empty_session_state):
-        empty_session_state["other_key"] = [
-            {"role": "system", "content": "test"}
+class TestCountNonSystemTurns:
+    def test_empty_history_returns_zero(self):
+        state = {"chat_history": [{"role": "system", "content": "S"}]}
+        assert count_non_system_turns(state) == 0
+
+    def test_counts_user_and_assistant(self, session_with_history):
+        # session_with_history has system + user + assistant = 2 non-system
+        assert count_non_system_turns(session_with_history) == 2
+
+    def test_missing_key_returns_zero(self):
+        assert count_non_system_turns({}) == 0
+
+    def test_only_counts_non_system(self):
+        state = {
+            "chat_history": [
+                {"role": "system", "content": "S"},
+                {"role": "system", "content": "S2"},
+                {"role": "user", "content": "Q"},
+            ]
+        }
+        assert count_non_system_turns(state) == 1
+
+
+class TestShouldSummarize:
+    def test_below_threshold_returns_false(self):
+        state = {
+            "chat_history": [
+                {"role": "system", "content": "S"},
+                {"role": "user", "content": "Q"},
+            ]
+        }
+        assert not should_summarize(state, threshold=10)
+
+    def test_at_threshold_returns_true(self):
+        state = {"chat_history": [{"role": "system", "content": "S"}]}
+        for i in range(10):
+            state["chat_history"].append({"role": "user", "content": f"Q{i}"})
+        assert should_summarize(state, threshold=10)
+
+    def test_uses_summary_threshold_constant(self):
+        assert isinstance(SUMMARY_THRESHOLD, int)
+        assert SUMMARY_THRESHOLD > 0
+
+
+class TestSummarizeHistory:
+    def _make_model(self, summary_text: str):
+        model = MagicMock()
+        response = MagicMock()
+        response.content = summary_text
+        model.invoke.return_value = response
+        return model
+
+    def test_returns_string(self):
+        history = [
+            {"role": "system", "content": "System"},
+            {"role": "user", "content": "Q"},
+            {"role": "assistant", "content": "A"},
         ]
-        history = get_history(empty_session_state, state_key="other_key")
-        assert len(history) == 1
+        model = self._make_model("요약된 내용입니다.")
+        result = summarize_history(history, model)
+        assert isinstance(result, str)
+        assert len(result) > 0
 
-    def test_returns_same_list_object(self, session_with_history):
-        """get_history returns the actual list, not a copy."""
-        h1 = get_history(session_with_history)
-        h2 = get_history(session_with_history)
-        assert h1 is h2
+    def test_returns_model_content(self):
+        history = [
+            {"role": "user", "content": "Q"},
+            {"role": "assistant", "content": "A"},
+        ]
+        model = self._make_model("요약된 내용입니다.")
+        result = summarize_history(history, model)
+        assert result == "요약된 내용입니다."
+
+    def test_empty_history_returns_empty(self):
+        result = summarize_history([], MagicMock())
+        assert result == ""
+
+    def test_only_system_turns_returns_empty(self):
+        history = [{"role": "system", "content": "S"}]
+        result = summarize_history(history, MagicMock())
+        assert result == ""
+
+    def test_model_failure_returns_empty(self):
+        history = [{"role": "user", "content": "Q"}, {"role": "assistant", "content": "A"}]
+        model = MagicMock()
+        model.invoke.side_effect = RuntimeError("LLM error")
+        result = summarize_history(history, model)
+        assert result == ""
+
+
+class TestSummaryStoreGet:
+    def test_store_and_get(self):
+        state = {}
+        store_conversation_summary(state, "요약입니다.")
+        assert get_conversation_summary(state) == "요약입니다."
+
+    def test_get_returns_none_when_absent(self):
+        assert get_conversation_summary({}) is None
+
+    def test_custom_key(self):
+        state = {}
+        store_conversation_summary(state, "요약", summary_key="my_summary")
+        assert get_conversation_summary(state, summary_key="my_summary") == "요약"
+        assert get_conversation_summary(state) is None

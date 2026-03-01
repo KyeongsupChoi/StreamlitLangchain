@@ -24,8 +24,8 @@ class TestAvailableTools:
     def test_not_empty(self):
         assert len(AVAILABLE_TOOLS) > 0
 
-    def test_has_six_tools(self):
-        assert len(AVAILABLE_TOOLS) == 6
+    def test_has_seven_tools(self):
+        assert len(AVAILABLE_TOOLS) == 7
 
     def test_all_have_names(self):
         for t in AVAILABLE_TOOLS:
@@ -67,6 +67,7 @@ class TestListAvailableTools:
         expected = {
             "search_web", "search_documents", "fetch_weather",
             "calculate_math", "get_current_time", "convert_currency",
+            "parse_news_article",
         }
         assert expected == set(names)
 

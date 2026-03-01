@@ -1,46 +1,41 @@
 """
-Mock comparable transaction data for Korean real estate valuation.
+Comparable transaction data for Korean real estate valuation.
 
 Project role:
-  Returns recent transaction records by region and property type. Mock data
-  for MVP; replace with data.go.kr API client in Phase 2.
+  Returns recent transaction records by region and property type.
+  Data is sourced from valuation/data/mock/transactions.py (Phase 1 mock).
+  Phase 6.1 will replace the mock source with a live MOLIT API client while
+  keeping this module's public interface unchanged.
 """
 
 from __future__ import annotations
 
-MOCK_COMPARABLES: dict[tuple[str, str], list[dict]] = {
-    ("서울 강남구", "아파트"): [
-        {"price_krw": 1_680_000_000, "area_sqm": 84.0, "date": "2025-09", "floor": 12},
-        {"price_krw": 1_520_000_000, "area_sqm": 84.0, "date": "2025-07", "floor": 8},
-        {"price_krw": 1_750_000_000, "area_sqm": 84.0, "date": "2025-11", "floor": 18},
-    ],
-    ("서울 강남구", "오피스텔"): [
-        {"price_krw": 680_000_000, "area_sqm": 59.0, "date": "2025-10", "floor": 5},
-        {"price_krw": 720_000_000, "area_sqm": 62.0, "date": "2025-08", "floor": 10},
-    ],
-    ("서울 서초구", "아파트"): [
-        {"price_krw": 1_450_000_000, "area_sqm": 84.0, "date": "2025-10", "floor": 15},
-        {"price_krw": 1_380_000_000, "area_sqm": 76.0, "date": "2025-08", "floor": 7},
-        {"price_krw": 1_500_000_000, "area_sqm": 84.0, "date": "2025-12", "floor": 22},
-    ],
-    ("서울 서초구", "오피스텔"): [
-        {"price_krw": 620_000_000, "area_sqm": 55.0, "date": "2025-09", "floor": 3},
-    ],
-    ("경기 성남시", "아파트"): [
-        {"price_krw": 780_000_000, "area_sqm": 84.0, "date": "2025-10", "floor": 10},
-        {"price_krw": 720_000_000, "area_sqm": 76.0, "date": "2025-07", "floor": 5},
-    ],
-    ("경기 성남시", "오피스텔"): [
-        {"price_krw": 380_000_000, "area_sqm": 59.0, "date": "2025-11", "floor": 8},
-    ],
-    ("부산 해운대구", "아파트"): [
-        {"price_krw": 650_000_000, "area_sqm": 84.0, "date": "2025-09", "floor": 14},
-        {"price_krw": 580_000_000, "area_sqm": 76.0, "date": "2025-06", "floor": 6},
-    ],
-    ("부산 해운대구", "오피스텔"): [
-        {"price_krw": 320_000_000, "area_sqm": 55.0, "date": "2025-10", "floor": 4},
-    ],
-}
+from valuation.data.mock.transactions import (
+    TRANSACTIONS,
+    get_price_history,
+    get_transactions_by_region,
+)
+
+# Re-export get_price_history so callers can import from this module.
+__all__ = ["MOCK_COMPARABLES", "get_comparables", "get_price_history"]
+
+# Build MOCK_COMPARABLES in the legacy (region, property_type) -> list[dict] format
+# so existing code and tests that import it directly continue to work.
+# Records include the new fields (complex_name, dong, building_age) in addition
+# to the original keys (price_krw, area_sqm, date, floor).
+MOCK_COMPARABLES: dict[tuple[str, str], list[dict]] = {}
+for _rec in TRANSACTIONS:
+    _key = (_rec["region"], _rec["property_type"])
+    MOCK_COMPARABLES.setdefault(_key, []).append({
+        "price_krw": _rec["price_krw"],
+        "area_sqm": _rec["area_sqm"],
+        "date": _rec["date"],
+        "floor": _rec["floor"],
+        "complex_name": _rec["complex_name"],
+        "dong": _rec["dong"],
+        "building_age": _rec["building_age"],
+        "price_per_sqm_krw": _rec["price_per_sqm_krw"],
+    })
 
 
 def get_comparables(
@@ -54,10 +49,15 @@ def get_comparables(
     Params:
         region: Administrative region (e.g. "서울 강남구").
         property_type: One of 아파트, 오피스텔, 단독주택.
-        area_sqm: Optional area filter (unused in mock; reserved for API).
+        area_sqm: Optional area filter. When provided, returns only records
+                  within ±15 ㎡ of the specified area.
 
     Returns:
-        List of dicts with keys: price_krw, area_sqm, date, floor.
+        List of dicts with keys: price_krw, area_sqm, date, floor,
+        complex_name, dong, building_age, price_per_sqm_krw.
         Empty list if no data for the region/type combination.
     """
-    return list(MOCK_COMPARABLES.get((region, property_type), []))
+    records = list(MOCK_COMPARABLES.get((region, property_type), []))
+    if area_sqm is not None:
+        records = [r for r in records if abs(r["area_sqm"] - area_sqm) <= 15]
+    return records

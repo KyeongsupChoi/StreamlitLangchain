@@ -22,6 +22,7 @@ from tools import (
     search_documents,
     search_web,
 )
+from tools.news_tools import parse_news_article
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +35,7 @@ AVAILABLE_TOOLS: list[BaseTool] = [
     calculate_math,
     get_current_time,
     convert_currency,
+    parse_news_article,
 ]
 
 

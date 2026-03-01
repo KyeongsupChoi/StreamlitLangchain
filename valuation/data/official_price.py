@@ -1,45 +1,48 @@
 """
-Mock official land price data (공시지가) for Korean real estate valuation.
+Official land price (공시지가) data for Korean real estate valuation.
 
 Project role:
-  Returns official land price per square meter by region. Mock data for MVP;
-  replace with data.go.kr API client in Phase 2.
+  Returns official land price per square meter by region and optional year.
+  Data is sourced from valuation/data/mock/official_prices.py (Phase 1 mock).
+  Phase 6.2 will replace the mock source with a live data.go.kr API client
+  while keeping this module's public interface unchanged.
 """
 
 from __future__ import annotations
 
+from valuation.data.mock.official_prices import (
+    DEFAULT_BY_YEAR,
+    LATEST_YEAR,
+    OFFICIAL_PRICE_TABLE,
+    _PREFIX_ORDER,
+    lookup,
+)
+
+# ── Backward-compatible exports ───────────────────────────────────────────────
+# These dicts use the same values as before so existing tests pass unchanged.
+
 MOCK_OFFICIAL_PRICE_PER_SQM: dict[str, int] = {
-    "서울 강남구": 12_500_000,
-    "서울 서초구": 10_800_000,
-    "서울 송파구": 8_500_000,
-    "서울 마포구": 7_200_000,
-    "서울": 6_000_000,
-    "경기 성남시": 4_500_000,
-    "경기 수원시": 3_800_000,
-    "경기": 3_000_000,
-    "부산 해운대구": 3_500_000,
-    "부산": 2_500_000,
+    prefix: year_data[LATEST_YEAR]
+    for prefix, year_data in OFFICIAL_PRICE_TABLE.items()
 }
 
-DEFAULT_OFFICIAL_PRICE_PER_SQM = 2_000_000
+DEFAULT_OFFICIAL_PRICE_PER_SQM: int = DEFAULT_BY_YEAR[LATEST_YEAR]
 
-_REGION_ORDER = sorted(MOCK_OFFICIAL_PRICE_PER_SQM.keys(), key=len, reverse=True)
+_REGION_ORDER = _PREFIX_ORDER
 
 
-def get_official_land_price_per_sqm(region: str) -> int:
+def get_official_land_price_per_sqm(region: str, year: int | None = None) -> int:
     """
     Return official land price per square meter (KRW/㎡) for the given region.
 
-    Region is matched by longest prefix first, falling back to a default.
+    Region is matched by longest prefix first (e.g. "서울 강남구" beats "서울"),
+    falling back to a default for unrecognised regions.
 
     Params:
         region: Administrative region (e.g. "서울 강남구", "경기 성남시").
+        year: Reference year (2019-2024). Defaults to the latest available year.
 
     Returns:
         Official land price in KRW per ㎡.
     """
-    region = (region or "").strip()
-    for prefix in _REGION_ORDER:
-        if region.startswith(prefix):
-            return MOCK_OFFICIAL_PRICE_PER_SQM[prefix]
-    return DEFAULT_OFFICIAL_PRICE_PER_SQM
+    return lookup(region, year)
