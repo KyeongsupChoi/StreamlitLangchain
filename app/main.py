@@ -27,11 +27,12 @@ from observability.logging_config import configure_logging
 
 logger = logging.getLogger(__name__)
 
+PAGE_HOME = "홈"
 PAGE_VALUATION = "부동산 감정 평가"
 PAGE_REALESTATE_CHAT = "부동산 AI 상담"
 PAGE_NEWS = "뉴스 분석"
 PAGE_CHAT = "Chat"
-_ALL_PAGES = [PAGE_VALUATION, PAGE_REALESTATE_CHAT, PAGE_NEWS, PAGE_CHAT]
+_ALL_PAGES = [PAGE_HOME, PAGE_VALUATION, PAGE_REALESTATE_CHAT, PAGE_NEWS, PAGE_CHAT]
 
 
 def _render_sidebar() -> dict:
@@ -146,6 +147,9 @@ def _render_sidebar() -> dict:
             st.session_state.pop("chat_history", None)
             st.rerun()
 
+    # ── Home page sidebar — nothing extra ─────────────────────────────────────
+    # (no settings needed; hero buttons handle navigation)
+
     # ── Watchlist (always visible if non-empty) ────────────────────────────────
     ctx = get_app_context(st.session_state)
     if ctx.watchlist:
@@ -172,6 +176,51 @@ def _render_sidebar() -> dict:
                     st.rerun()
 
     return {"page": page, **chat_settings}
+
+
+def _render_home_page() -> None:
+    """Render the landing page with two large hero entry-point buttons."""
+
+    st.title("🏢 한국 부동산 AI 플랫폼")
+    st.markdown("시작할 기능을 선택하세요.")
+    st.divider()
+
+    # Make the two hero buttons tall — scoped to the main content area only.
+    st.markdown(
+        """
+        <style>
+        [data-testid="stMain"] [data-testid="stButton"] > button {
+            min-height: 180px;
+            font-size: 1.3rem !important;
+            font-weight: 700 !important;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    col1, col2 = st.columns(2, gap="large")
+
+    with col1:
+        if st.button(
+            "🏠  Evaluate Listing",
+            use_container_width=True,
+            type="primary",
+            key="home_btn_eval",
+        ):
+            st.session_state["navigate_to"] = PAGE_VALUATION
+            st.rerun()
+        st.caption("부동산 감정 평가 · 5년 실거래 추이 · 요인 분석")
+
+    with col2:
+        if st.button(
+            "📰  Analyze News",
+            use_container_width=True,
+            key="home_btn_news",
+        ):
+            st.session_state["navigate_to"] = PAGE_NEWS
+            st.rerun()
+        st.caption("뉴스 시장 영향 분석 · 호재/악재 판별 · 영향 단지")
 
 
 def _render_chat_page(sidebar: dict) -> None:
@@ -237,7 +286,9 @@ def run() -> None:
 
     sidebar = _render_sidebar()
 
-    if sidebar["page"] == PAGE_VALUATION:
+    if sidebar["page"] == PAGE_HOME:
+        _render_home_page()
+    elif sidebar["page"] == PAGE_VALUATION:
         render_valuation_page()
     elif sidebar["page"] == PAGE_REALESTATE_CHAT:
         render_realestate_chat_page(sidebar)
